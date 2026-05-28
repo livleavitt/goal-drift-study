@@ -63,4 +63,4 @@ goal-drift-study/
 
 **Researcher:** Olivia Leavitt
 
-This research targets AI safety with a focus on agent observability — specifically the question of how to detect and characterize misalignment in deployed agents using only the behavioral traces they leave behind. The goal is to produce findings and tooling that are practically useful for teams building long-horizon AI systems who need rigorous methods for auditing agent fidelity to user intent.
+This research targets AI safety with a focus on agent observability, specifically the question of how to detect and characterize misalignment in deployed agents using only the behavioral traces they leave behind. The goal is to produce findings and tooling that are practically useful for teams building long-horizon AI systems who need rigorous methods for auditing agent fidelity to user intent.
