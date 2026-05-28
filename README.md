@@ -1,2 +1,3 @@
-# goal-drift-study
-Empirical study measuring goal drift failure modes in multi-step AI agent tasks
+# Goal Drift in Multi-Step AI Agent Tasks
+
+An empirical study examining how AI agents deviate from original objectives across extended, multi-step task sequences.
