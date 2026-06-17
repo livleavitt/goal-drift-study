@@ -30,9 +30,7 @@ This study uses a **Flight Recorder** setup designed to capture complete, tamper
 
 - **Claude Code** — Used for experiment scripting, prompt construction, and post-hoc analysis of trial outputs. Provides the primary interface for designing task sequences and evaluating drift candidates.
 - **AnyForge SDK** — Drives automated trial execution, managing agent instantiation, step sequencing, and structured output collection across large trial batches without manual intervention.
-- **AnyForge Control Layer** — Captures immutable audit trails of every agent action, tool call, and intermediate state. These logs are the ground truth for drift classification and are written append-only to `audit_logs/raw_control_traces/` at runtime.
-
-The separation between execution (AnyForge SDK) and logging (Control Layer) ensures that drift events cannot be obscured by agent behavior — the record is written independently of the agent under study.
+- **AnyForge Control Layer** — Installed as an MCP server connected to Claude Code via `claude mcp add anyforge`. It captures immutable audit trails of every agent reasoning step and writes them append-only to `audit_logs/raw_control_traces/`. The Control Layer owns the log independently — the agent under study has no write access to its own trace.
 
 ---
 
@@ -62,5 +60,7 @@ goal-drift-study/
 ## About
 
 **Researcher:** Olivia Leavitt
+**Collaboration:** Edwin Poot, Founder of Anyforge.ai
+**Repository:** github.com/livleavitt/goal-drift-study
 
 This research targets AI safety with a focus on agent observability, specifically the question of how to detect and characterize misalignment in deployed agents using only the behavioral traces they leave behind. The goal is to produce findings and tooling that are practically useful for teams building long-horizon AI systems who need rigorous methods for auditing agent fidelity to user intent.
