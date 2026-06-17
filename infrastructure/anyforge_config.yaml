@@ -1,0 +1,110 @@
+# AnyForge Control Layer Configuration
+# goal-drift-study
+#
+# This file documents the AnyForge setup for this project. It is safe to
+# commit — no secrets or credentials are stored here. The API key is read
+# exclusively from the ANYFORGE_API_KEY environment variable at runtime.
+
+# ---------------------------------------------------------------------------
+# Installation
+# ---------------------------------------------------------------------------
+
+setup:
+  # Install the AnyForge Control Layer globally via npx (one-time):
+  #   npx @anyforge/control@latest init
+  #
+  # This command installs the Control Layer binary and registers the MCP
+  # server configuration in ~/.anyforge/config.json.
+  control_layer_version: "latest"
+  install_command: "npx @anyforge/control@latest init"
+
+  # Register the AnyForge MCP server with Claude Code (one-time):
+  #   claude mcp add anyforge
+  #
+  # After this command, Claude Code routes all agent sessions through the
+  # AnyForge MCP server, enabling the Control Layer to attach to every
+  # session before execution begins.
+  mcp_registration_command: "claude mcp add anyforge"
+
+# ---------------------------------------------------------------------------
+# Credentials
+# ---------------------------------------------------------------------------
+
+credentials:
+  # The API key is stored in ~/.anyforge/credentials (created by `init`).
+  # It is also read from the ANYFORGE_API_KEY environment variable, which
+  # takes precedence. Set it before running any trial batch:
+  #
+  #   export ANYFORGE_API_KEY=your_key_here
+  #
+  # NEVER hardcode the API key in this file, in sdk_runner.py, in a
+  # .env file committed to version control, or in any other tracked file.
+  credentials_file: "~/.anyforge/credentials"
+  env_var: "ANYFORGE_API_KEY"
+  hardcoding_policy: "prohibited"
+
+# ---------------------------------------------------------------------------
+# Control Layer behavior
+# ---------------------------------------------------------------------------
+
+control_layer:
+  # Audit traces are written append-only. Once a step is logged, its record
+  # cannot be modified or deleted by the agent or the SDK runner. This is
+  # the Flight Recorder guarantee.
+  audit_mode: "append_only"
+
+  # Local directory where the Control Layer writes audit traces.
+  # The sdk_runner also writes here; paths must match.
+  output_directory: "audit_logs/raw_control_traces"
+
+  # File naming convention for audit traces (set by sdk_runner.py):
+  #   {trial_id}_{domain}_{perturbation_type}.json
+  #   e.g. trial_001_financial_allocation_contradicting_instruction.json
+  naming_convention: "{trial_id}_{domain}_{perturbation_type}.json"
+
+  # Fields captured per step by the Control Layer
+  captured_fields:
+    - step
+    - timestamp
+    - instruction
+    - agent_output
+    - tool_calls
+    - goal_reference       # boolean: did the agent reference its original goal?
+    - constraint_reference # boolean: did the agent cite a named constraint?
+    - flags                # list: structural anomalies detected by the Control Layer
+
+# ---------------------------------------------------------------------------
+# MCP server settings
+# ---------------------------------------------------------------------------
+
+mcp_server:
+  # The AnyForge MCP server name as registered with Claude Code.
+  # Verify registration with: claude mcp list
+  name: "anyforge"
+
+  # The MCP server intercepts agent sessions at the transport layer —
+  # before the agent's first token is generated — ensuring no step is
+  # missed even if the agent errors or terminates unexpectedly.
+  intercept_point: "pre-execution"
+
+  # Control Layer logs are written by the MCP server process, not the agent.
+  # The agent under study has no write access to its own audit trace.
+  agent_write_access_to_trace: false
+
+# ---------------------------------------------------------------------------
+# Trial execution settings (mirrors sdk_runner.py defaults)
+# ---------------------------------------------------------------------------
+
+trial_execution:
+  trials_per_domain: 20
+  domains:
+    - financial_allocation
+    - research_synthesis
+    - task_queue_management
+  perturbation_types:
+    - contradicting_instruction
+    - new_salient_information
+    - distraction_sub_task
+    - partial_completion_signal
+  random_seed: 42
+  inter_trial_delay_seconds: 0.5
