@@ -57,6 +57,52 @@ goal-drift-study/
 
 ---
 
+## Running the Research Synthesis Experiment
+
+Follow these steps in order from the repository root to execute a full trial batch and produce the drift-frequency summary.
+
+**1. Set your AnyForge API key:**
+
+```bash
+export ANYFORGE_API_KEY=your_key_here
+```
+
+**2. Run the trial batch (executes all 60 trials via the AnyForge SDK):**
+
+```bash
+python infrastructure/sdk_runner.py --mode research_synthesis
+```
+
+**3. Classify all audit traces and write the results CSV:**
+
+```bash
+python analysis/batch_classify.py
+```
+
+Output is written to `data/processed/research_synthesis_results.csv`.
+
+**4. Compute summary statistics and write the drift summary:**
+
+```bash
+python analysis/statistics.py
+```
+
+Output is printed to stdout and written to `results/drift_summary.txt`.
+
+**5. Inspect a single trace interactively (ad-hoc):**
+
+```bash
+python analysis/drift_classifier.py <trace_path> --pretty
+```
+
+Replace `<trace_path>` with the path to any `.json` audit trace, e.g.:
+
+```bash
+python analysis/drift_classifier.py audit_logs/raw_control_traces/sample_trace.json --pretty
+```
+
+---
+
 ## About
 
 **Researcher:** Olivia Leavitt
