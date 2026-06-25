@@ -18,7 +18,7 @@ STEP 1: Run batch_classify.py
 -----------------------------------------------------------------------
 
 Command:
-  python analysis/batch_classify.py --output data/processed/financial_allocation_results.csv
+  python analysis/batch_classify.py
 
 Stdout:
   Processed 1 trace(s). Results written to data/processed/financial_allocation_results.csv
