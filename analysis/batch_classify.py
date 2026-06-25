@@ -1,8 +1,9 @@
 """
-batch_classify.py — Batch scorer for AnyForge Control Layer audit traces.
+batch_classify.py — Batch scorer for financial_allocation AnyForge audit traces.
 
-Globs all .json files in a traces directory, runs the rubric-based drift
-classifier on each, and writes one CSV row per trial to an output file.
+Globs all *financial_allocation*.json files in a traces directory, runs the
+rubric-based drift classifier on each, and writes one CSV row per trial to an
+output file.
 
 Output CSV schema (matches analysis/statistics.py load_results()):
   trial_id, domain, perturbation_type, drift_type_detected, onset_step, confidence
@@ -11,7 +12,7 @@ Usage:
   python analysis/batch_classify.py
   python analysis/batch_classify.py --traces-dir audit_logs/raw_control_traces
   python analysis/batch_classify.py --traces-dir audit_logs/raw_control_traces \\
-      --output data/processed/research_synthesis_results.csv
+      --output data/processed/financial_allocation_results.csv
 """
 
 import argparse
@@ -40,7 +41,10 @@ from analysis.drift_classifier import classify  # noqa: E402
 # ---------------------------------------------------------------------------
 
 DEFAULT_TRACES_DIR = "audit_logs/raw_control_traces"
-DEFAULT_OUTPUT = "data/processed/research_synthesis_results.csv"
+DEFAULT_OUTPUT = "data/processed/financial_allocation_results.csv"
+
+# Only process traces for the financial_allocation domain.
+TRACE_GLOB_PATTERN = "*financial_allocation*.json"
 
 CSV_FIELDNAMES = [
     "trial_id",
@@ -58,15 +62,22 @@ CSV_FIELDNAMES = [
 
 def batch_classify(traces_dir: Path, output: Path) -> int:
     """
-    Classify all JSON trace files in traces_dir and write results to output.
+    Classify all financial_allocation JSON trace files in traces_dir and write
+    results to output.
+
+    Only files matching the glob pattern *financial_allocation*.json are
+    processed; all other JSON files in the directory are ignored.
 
     Returns the number of successfully processed traces.
     Skipped (errored) traces are reported as WARNINGs on stdout.
     """
-    trace_files = sorted(traces_dir.glob("*.json"))
+    trace_files = sorted(traces_dir.glob(TRACE_GLOB_PATTERN))
 
     if not trace_files:
-        print(f"No .json trace files found in {traces_dir}. Nothing to do.")
+        print(
+            f"No files matching '{TRACE_GLOB_PATTERN}' found in {traces_dir}. "
+            "Nothing to do."
+        )
         return 0
 
     # Ensure the output directory exists
@@ -79,22 +90,25 @@ def batch_classify(traces_dir: Path, output: Path) -> int:
         writer.writeheader()
 
         for trace_path in trace_files:
+            # Read raw JSON for metadata fields (domain, perturbation_applied)
+            try:
+                with open(trace_path) as f:
+                    raw = json.load(f)
+            except FileNotFoundError as exc:
+                print(f"WARNING: skipping {trace_path.name} — file not found: {exc}")
+                continue
+            except Exception as exc:
+                print(f"WARNING: skipping {trace_path.name} — could not read file: {exc}")
+                continue
+
+            # Run the drift classifier
             try:
                 result = classify(str(trace_path))
             except FileNotFoundError as exc:
                 print(f"WARNING: skipping {trace_path.name} — {exc}")
                 continue
-            except json.JSONDecodeError as exc:
-                print(f"WARNING: skipping {trace_path.name} — JSON parse error: {exc}")
-                continue
-
-            # Read domain and perturbation_type directly from the trace JSON
-            # so the CSV has the raw study metadata, not just classifier output.
-            try:
-                with open(trace_path) as f:
-                    raw = json.load(f)
-            except (FileNotFoundError, json.JSONDecodeError) as exc:
-                print(f"WARNING: skipping {trace_path.name} — could not re-read for metadata: {exc}")
+            except Exception as exc:
+                print(f"WARNING: skipping {trace_path.name} — classifier error: {exc}")
                 continue
 
             domain = raw.get("domain", "unknown")
@@ -124,7 +138,8 @@ def batch_classify(traces_dir: Path, output: Path) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
-            "Batch-classify AnyForge audit traces and write results to a CSV. "
+            "Batch-classify financial_allocation AnyForge audit traces and write "
+            "results to a CSV. "
             "Output schema is compatible with analysis/statistics.py load_results()."
         )
     )
