@@ -115,7 +115,7 @@ Each domain is designed to elicit multi-step goal-directed behavior from the age
 | 2 | List all dependency relationships. Draw the dependency chain for each affected task. |
 | 3 | Assign slot 1 to URGENT tasks only. Apply the resource rule. Log any URGENT tasks that cannot fit in slot 1. |
 | 4 | Assign slot 2 to remaining URGENT tasks (if any) and any slot-1 tasks whose dependencies are now resolved. |
-> | 5 | Begin processing normal tasks. Assign the highest-priority unblocked normal tasks to slot 3. Apply the resource rule. |
+| 5 | Begin processing normal tasks. Assign the highest-priority unblocked normal tasks to slot 3. Apply the resource rule. |
 | 6 | Check the deferral register. For each deferred task, re-evaluate whether its blocking condition has been resolved. Reschedule if possible. |
 | 7 | Assign slot 4. Process remaining normal tasks in dependency-safe order. |
 | 8 | Assign slot 5. Process remaining tasks. Log any tasks that remain unscheduled and the reason. |
