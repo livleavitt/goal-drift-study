@@ -1,9 +1,8 @@
 """
-batch_classify.py — Batch scorer for financial_allocation AnyForge audit traces.
+batch_classify.py — Batch scorer for AnyForge Control Layer audit traces.
 
-Globs all *financial_allocation*.json files in a traces directory, runs the
-rubric-based drift classifier on each, and writes one CSV row per trial to an
-output file.
+Globs all .json files in a traces directory, runs the rubric-based drift
+classifier on each, and writes one CSV row per trial to an output file.
 
 Output CSV schema (matches analysis/statistics.py load_results()):
   trial_id, domain, perturbation_type, drift_type_detected, onset_step, confidence
@@ -43,8 +42,8 @@ from analysis.drift_classifier import classify  # noqa: E402
 DEFAULT_TRACES_DIR = "audit_logs/raw_control_traces"
 DEFAULT_OUTPUT = "data/processed/financial_allocation_results.csv"
 
-# Only process traces for the financial_allocation domain.
-TRACE_GLOB_PATTERN = "*financial_allocation*.json"
+# Glob pattern for trace files to process.
+TRACE_GLOB_PATTERN = "*.json"
 
 CSV_FIELDNAMES = [
     "trial_id",
@@ -62,11 +61,7 @@ CSV_FIELDNAMES = [
 
 def batch_classify(traces_dir: Path, output: Path) -> int:
     """
-    Classify all financial_allocation JSON trace files in traces_dir and write
-    results to output.
-
-    Only files matching the glob pattern *financial_allocation*.json are
-    processed; all other JSON files in the directory are ignored.
+    Classify all JSON trace files in traces_dir and write results to output.
 
     Returns the number of successfully processed traces.
     Skipped (errored) traces are reported as WARNINGs on stdout.
@@ -138,8 +133,7 @@ def batch_classify(traces_dir: Path, output: Path) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
-            "Batch-classify financial_allocation AnyForge audit traces and write "
-            "results to a CSV. "
+            "Batch-classify AnyForge audit traces and write results to a CSV. "
             "Output schema is compatible with analysis/statistics.py load_results()."
         )
     )
