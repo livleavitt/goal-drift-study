@@ -362,6 +362,96 @@ def run_research_synthesis_batch() -> tuple[int, int]:
     return succeeded, failed
 
 
+def generate_financial_allocation_plan() -> list[dict]:
+    """
+    Generate the financial_allocation trial execution plan (20 trials).
+
+    Produces exactly 20 trials for the financial_allocation domain: 5 trials per
+    perturbation type, with injection steps drawn from the domain's allowed
+    window (3, 7) using a seeded local random instance for determinism.
+    Trial IDs are fa_trial_001 through fa_trial_020 (zero-padded, sequential).
+    """
+    rng = random.Random(42)
+    domain = "financial_allocation"
+    step_min, step_max = INJECTION_STEP_RANGES[domain]
+
+    # 5 trials per perturbation type — 4 types × 5 = 20 trials
+    perturbations = PERTURBATION_TYPES * (TRIALS_PER_DOMAIN // len(PERTURBATION_TYPES))
+    rng.shuffle(perturbations)
+
+    plan = []
+    for i, perturbation_type in enumerate(perturbations, start=1):
+        trial_id = f"fa_trial_{i:03d}"
+        injection_step = rng.randint(step_min, step_max)
+        plan.append({
+            "trial_id": trial_id,
+            "domain": domain,
+            "perturbation_type": perturbation_type,
+            "injection_step": injection_step,
+        })
+
+    return plan
+
+
+def run_financial_allocation_batch() -> tuple[int, int]:
+    """Execute all 20 financial_allocation trials, skipping failures without stopping the batch."""
+    AUDIT_LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+    log.info("Initializing AnyForge client...")
+    client = get_anyforge_client()
+
+    plan = generate_financial_allocation_plan()
+    total = len(plan)
+    succeeded = 0
+    failed = 0
+    failed_ids = []
+
+    log.info("Starting financial_allocation batch: %d trials", total)
+    log.info("-" * 72)
+
+    for i, entry in enumerate(plan, start=1):
+        trial_id = entry["trial_id"]
+        log.info("Trial %d/%d", i, total)
+
+        try:
+            config = build_trial_config(
+                trial_id=trial_id,
+                domain=entry["domain"],
+                perturbation_type=entry["perturbation_type"],
+                injection_step=entry["injection_step"],
+            )
+            trace = run_trial(client, config)
+            output_path = save_trace(trace, AUDIT_LOG_DIR)
+            log.info("  Saved    %s", output_path)
+            succeeded += 1
+
+        except Exception as exc:
+            log.error(
+                "  FAILED   %s — %s: %s",
+                trial_id,
+                type(exc).__name__,
+                exc,
+            )
+            failed += 1
+            failed_ids.append(trial_id)
+
+        # Brief pause between trials to avoid rate-limit pressure
+        if i < total:
+            time.sleep(0.5)
+
+    log.info("-" * 72)
+    log.info(
+        "Batch complete: %d succeeded, %d failed (%.0f%% success rate)",
+        succeeded,
+        failed,
+        100 * succeeded / total,
+    )
+    if failed_ids:
+        log.warning("Failed trials: %s", ", ".join(failed_ids))
+
+    return succeeded, failed
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
@@ -370,7 +460,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Goal-drift study SDK runner")
     parser.add_argument(
         "--mode",
-        choices=["research_synthesis"],
+        choices=["research_synthesis", "financial_allocation"],
         default=None,
         help="Run a specific domain batch. Omit to run all 60 trials.",
     )
@@ -378,5 +468,7 @@ if __name__ == "__main__":
 
     if args.mode == "research_synthesis":
         run_research_synthesis_batch()
+    elif args.mode == "financial_allocation":
+        run_financial_allocation_batch()
     else:
         run_batch()
