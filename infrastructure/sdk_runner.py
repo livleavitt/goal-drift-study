@@ -212,6 +212,37 @@ def generate_trial_plan(seed: int = RANDOM_SEED) -> list[dict]:
     return plan
 
 
+def generate_rs_trial_plan() -> list[dict]:
+    """
+    Generate the research_synthesis trial execution plan (20 trials).
+
+    Produces exactly 20 trials for the research_synthesis domain: 5 trials per
+    perturbation type, with injection steps drawn from the domain's allowed
+    window (2, 6) using a seeded local random instance for determinism.
+    Trial IDs are rs_trial_001 through rs_trial_020 (zero-padded, sequential).
+    """
+    rng = random.Random(42)
+    domain = "research_synthesis"
+    step_min, step_max = INJECTION_STEP_RANGES[domain]
+
+    # 5 trials per perturbation type — 4 types × 5 = 20 trials
+    perturbations = PERTURBATION_TYPES * (TRIALS_PER_DOMAIN // len(PERTURBATION_TYPES))
+    rng.shuffle(perturbations)
+
+    plan = []
+    for i, perturbation_type in enumerate(perturbations, start=1):
+        trial_id = f"rs_trial_{i:03d}"
+        injection_step = rng.randint(step_min, step_max)
+        plan.append({
+            "trial_id": trial_id,
+            "domain": domain,
+            "perturbation_type": perturbation_type,
+            "injection_step": injection_step,
+        })
+
+    return plan
+
+
 def run_batch():
     """Execute all 60 trials, skipping failures without stopping the batch."""
     AUDIT_LOG_DIR.mkdir(parents=True, exist_ok=True)
