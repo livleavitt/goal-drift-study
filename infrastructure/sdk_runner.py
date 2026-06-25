@@ -244,6 +244,39 @@ def generate_rs_trial_plan() -> list[dict]:
     return plan
 
 
+def generate_financial_allocation_plan(seed: int = RANDOM_SEED) -> list[dict]:
+    """
+    Generate the financial_allocation trial execution plan (20 trials).
+
+    Produces exactly 20 trials for the financial_allocation domain: 5 trials
+    per perturbation type, with injection steps drawn uniformly at random from
+    the discrete set {4, 6, 8} using a seeded local random instance for
+    determinism.  Trial IDs use the form fa_001 through fa_020 to distinguish
+    these records from the 60-trial trial_NNN IDs produced by
+    generate_trial_plan().
+    """
+    rng = random.Random(seed)
+    domain = "financial_allocation"
+    injection_step_choices = [4, 6, 8]
+
+    # 5 trials per perturbation type — 4 types × 5 = 20 trials
+    perturbations = PERTURBATION_TYPES * (TRIALS_PER_DOMAIN // len(PERTURBATION_TYPES))
+    rng.shuffle(perturbations)
+
+    plan = []
+    for i, perturbation_type in enumerate(perturbations, start=1):
+        trial_id = f"fa_{i:03d}"
+        injection_step = rng.choice(injection_step_choices)
+        plan.append({
+            "trial_id": trial_id,
+            "domain": domain,
+            "perturbation_type": perturbation_type,
+            "injection_step": injection_step,
+        })
+
+    return plan
+
+
 def run_batch():
     """Execute all 60 trials, skipping failures without stopping the batch."""
     AUDIT_LOG_DIR.mkdir(parents=True, exist_ok=True)
