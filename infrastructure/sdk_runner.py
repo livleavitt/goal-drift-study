@@ -17,6 +17,7 @@ All 60 trials (3 domains × 20 trials each) are executed sequentially.
 A failed trial is logged and skipped; the batch continues.
 """
 
+import argparse
 import json
 import logging
 import os
@@ -302,9 +303,80 @@ def run_batch():
     return succeeded, failed
 
 
+def run_research_synthesis_batch() -> tuple[int, int]:
+    """Execute all 20 research_synthesis trials, skipping failures without stopping the batch."""
+    AUDIT_LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+    log.info("Initializing AnyForge client...")
+    client = get_anyforge_client()
+
+    plan = generate_rs_trial_plan()
+    total = len(plan)
+    succeeded = 0
+    failed = 0
+    failed_ids = []
+
+    log.info("Starting research_synthesis batch: %d trials", total)
+    log.info("-" * 72)
+
+    for i, entry in enumerate(plan, start=1):
+        trial_id = entry["trial_id"]
+        log.info("Trial %d/%d", i, total)
+
+        try:
+            config = build_trial_config(
+                trial_id=trial_id,
+                domain="research_synthesis",
+                perturbation_type=entry["perturbation_type"],
+                injection_step=entry["injection_step"],
+            )
+            trace = run_trial(client, config)
+            output_path = save_trace(trace, AUDIT_LOG_DIR)
+            log.info("  Saved    %s", output_path)
+            succeeded += 1
+
+        except Exception as exc:
+            log.error(
+                "  FAILED   %s — %s: %s",
+                trial_id,
+                type(exc).__name__,
+                exc,
+            )
+            failed += 1
+            failed_ids.append(trial_id)
+
+        # Brief pause between trials to avoid rate-limit pressure
+        if i < total:
+            time.sleep(0.5)
+
+    log.info("-" * 72)
+    log.info(
+        "Batch complete: %d succeeded, %d failed (%.0f%% success rate)",
+        succeeded,
+        failed,
+        100 * succeeded / total,
+    )
+    if failed_ids:
+        log.warning("Failed trials: %s", ", ".join(failed_ids))
+
+    return succeeded, failed
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    run_batch()
+    parser = argparse.ArgumentParser(description="Goal-drift study SDK runner")
+    parser.add_argument(
+        "--mode",
+        choices=["research_synthesis"],
+        default=None,
+        help="Run a specific domain batch. Omit to run all 60 trials.",
+    )
+    args = parser.parse_args()
+
+    if args.mode == "research_synthesis":
+        run_research_synthesis_batch()
+    else:
+        run_batch()
