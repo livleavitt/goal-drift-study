@@ -1,24 +1,40 @@
 """
 batch_classify.py — Batch scorer for AnyForge Control Layer audit traces.
 
-Globs all .json files in a traces directory, runs the rubric-based drift
-classifier on each, and writes one CSV row per trial to an output file.
+Globs all .json files in a traces directory (optionally filtered to a single
+domain), runs the rubric-based drift classifier on each, and writes one CSV
+row per trial to an output file in the processed-data directory.
 
-Output CSV schema (matches analysis/statistics.py load_results()):
+Output CSV schema (matches analysis/statistics.py required_fields):
   trial_id, domain, perturbation_type, drift_type_detected, onset_step, confidence
 
 Usage:
   python analysis/batch_classify.py
   python analysis/batch_classify.py --traces-dir audit_logs/raw_control_traces
-  python analysis/batch_classify.py --traces-dir audit_logs/raw_control_traces \\
-      --output data/processed/financial_allocation_results.csv
+  python analysis/batch_classify.py --domain financial_allocation
+  python analysis/batch_classify.py --domain financial_allocation \\
+      --traces-dir audit_logs/raw_control_traces --output-dir data/processed
 """
 
 import argparse
 import csv
 import json
+import logging
 import sys
 from pathlib import Path
+
+
+# ---------------------------------------------------------------------------
+# Logging configuration
+# ---------------------------------------------------------------------------
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+log = logging.getLogger(__name__)
+
 
 # ---------------------------------------------------------------------------
 # Import the classifier from the same package directory
@@ -40,7 +56,7 @@ from analysis.drift_classifier import classify  # noqa: E402
 # ---------------------------------------------------------------------------
 
 DEFAULT_TRACES_DIR = "audit_logs/raw_control_traces"
-DEFAULT_OUTPUT = "data/processed/financial_allocation_results.csv"
+DEFAULT_OUTPUT_DIR = "data/processed"
 
 # Glob pattern for trace files to process.
 TRACE_GLOB_PATTERN = "*.json"
@@ -59,26 +75,40 @@ CSV_FIELDNAMES = [
 # Core logic
 # ---------------------------------------------------------------------------
 
-def batch_classify(traces_dir: Path, output: Path) -> int:
+def batch_classify(traces_dir: Path, output_dir: Path, domain: str | None = None) -> int:
     """
-    Classify all JSON trace files in traces_dir and write results to output.
+    Classify all JSON trace files in traces_dir and write results to output_dir.
+
+    If domain is given, only traces whose JSON contains a matching 'domain'
+    field are classified; all others are silently counted as filtered.
+    Traces that are unreadable, malformed, or missing a 'domain' field are
+    skipped with a log.warning and do not abort the batch.
 
     Returns the number of successfully processed traces.
-    Skipped (errored) traces are reported as WARNINGs on stdout.
     """
     trace_files = sorted(traces_dir.glob(TRACE_GLOB_PATTERN))
 
     if not trace_files:
-        print(
-            f"No files matching '{TRACE_GLOB_PATTERN}' found in {traces_dir}. "
-            "Nothing to do."
+        log.warning(
+            "No files matching '%s' found in %s. Nothing to do.",
+            TRACE_GLOB_PATTERN,
+            traces_dir,
         )
         return 0
 
+    # Determine output filename
+    if domain:
+        output_filename = f"{domain}_results.csv"
+    else:
+        output_filename = "all_results.csv"
+
+    output = output_dir / output_filename
+
     # Ensure the output directory exists
-    output.parent.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     processed = 0
+    filtered = 0
 
     with open(output, "w", newline="") as csv_file:
         writer = csv.DictWriter(csv_file, fieldnames=CSV_FIELDNAMES)
@@ -89,40 +119,68 @@ def batch_classify(traces_dir: Path, output: Path) -> int:
             try:
                 with open(trace_path) as f:
                     raw = json.load(f)
-            except FileNotFoundError as exc:
-                print(f"WARNING: skipping {trace_path.name} — file not found: {exc}")
+            except json.JSONDecodeError as exc:
+                log.warning(
+                    "Skipping %s — malformed JSON: %s", trace_path.name, exc
+                )
                 continue
             except Exception as exc:
-                print(f"WARNING: skipping {trace_path.name} — could not read file: {exc}")
+                log.warning(
+                    "Skipping %s — could not read file: %s", trace_path.name, exc
+                )
+                continue
+
+            # Require the 'domain' field to be present in the trace
+            trace_domain = raw.get("domain")
+            if trace_domain is None:
+                log.warning(
+                    "Skipping %s — 'domain' field absent in trace JSON.",
+                    trace_path.name,
+                )
+                continue
+
+            # Apply domain filter if requested
+            if domain is not None and trace_domain != domain:
+                filtered += 1
                 continue
 
             # Run the drift classifier
             try:
                 result = classify(str(trace_path))
             except FileNotFoundError as exc:
-                print(f"WARNING: skipping {trace_path.name} — {exc}")
+                log.warning("Skipping %s — %s", trace_path.name, exc)
                 continue
             except Exception as exc:
-                print(f"WARNING: skipping {trace_path.name} — classifier error: {exc}")
+                log.warning(
+                    "Skipping %s — classifier error: %s", trace_path.name, exc
+                )
                 continue
 
-            domain = raw.get("domain", "unknown")
             perturbation_type = raw.get("perturbation_applied", "unknown")
 
-            writer.writerow({
-                "trial_id": result.trial_id,
-                "domain": domain,
-                "perturbation_type": perturbation_type,
-                "drift_type_detected": result.drift_type_detected,
-                "onset_step": result.onset_step,
-                "confidence": result.confidence,
-            })
+            writer.writerow(
+                {
+                    "trial_id": result.trial_id,
+                    "domain": trace_domain,
+                    "perturbation_type": perturbation_type,
+                    "drift_type_detected": result.drift_type_detected,
+                    "onset_step": result.onset_step,
+                    "confidence": result.confidence,
+                }
+            )
             processed += 1
 
-    print(
-        f"Processed {processed} trace(s). "
-        f"Results written to {output}"
-    )
+    if processed == 0 and domain is not None:
+        log.warning(
+            "0 traces matched domain filter '%s'. CSV written with header only: %s",
+            domain,
+            output,
+        )
+    else:
+        log.info(
+            "Processed %d trace(s). Results written to %s", processed, output
+        )
+
     return processed
 
 
@@ -138,6 +196,16 @@ def main() -> None:
         )
     )
     parser.add_argument(
+        "--domain",
+        default=None,
+        help=(
+            "If given, only process traces whose JSON 'domain' field matches "
+            "this value (e.g. financial_allocation). "
+            "Output file will be named {domain}_results.csv. "
+            "Omit to process all traces; output file will be all_results.csv."
+        ),
+    )
+    parser.add_argument(
         "--traces-dir",
         default=DEFAULT_TRACES_DIR,
         help=(
@@ -146,24 +214,24 @@ def main() -> None:
         ),
     )
     parser.add_argument(
-        "--output",
-        default=DEFAULT_OUTPUT,
+        "--output-dir",
+        default=DEFAULT_OUTPUT_DIR,
         help=(
-            f"Path for the output CSV file "
-            f"(default: {DEFAULT_OUTPUT})"
+            f"Directory to write the output CSV file into "
+            f"(default: {DEFAULT_OUTPUT_DIR})"
         ),
     )
     args = parser.parse_args()
 
     traces_dir = Path(args.traces_dir)
-    output = Path(args.output)
+    output_dir = Path(args.output_dir)
 
     if not traces_dir.exists():
-        print(f"WARNING: traces directory does not exist: {traces_dir}")
-        print("No traces to process.")
+        log.warning("Traces directory does not exist: %s", traces_dir)
+        log.warning("No traces to process.")
         sys.exit(0)
 
-    batch_classify(traces_dir, output)
+    batch_classify(traces_dir, output_dir, domain=args.domain)
     sys.exit(0)
 
 
