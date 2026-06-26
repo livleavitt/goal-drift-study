@@ -277,20 +277,35 @@ def generate_financial_allocation_plan(seed: int = RANDOM_SEED) -> list[dict]:
     return plan
 
 
-def run_batch():
-    """Execute all 60 trials, skipping failures without stopping the batch."""
+def run_batch(domain_filter: str | None = None):
+    """Execute trials, skipping failures without stopping the batch.
+
+    The full 60-trial plan is always generated with seed=42 to preserve
+    reproducibility.  If domain_filter is provided, only trials whose
+    ``domain`` field matches that value are executed; all others are skipped.
+    When domain_filter is None all 60 trials are executed (unchanged behaviour).
+    """
     AUDIT_LOG_DIR.mkdir(parents=True, exist_ok=True)
 
     log.info("Initializing AnyForge client...")
     client = get_anyforge_client()
 
-    plan = generate_trial_plan()
+    # Always generate the full plan first so that seed=42 reproducibility is
+    # preserved regardless of any domain filter applied afterwards.
+    full_plan = generate_trial_plan()
+    if domain_filter is not None:
+        plan = [t for t in full_plan if t["domain"] == domain_filter]
+        active_domains = [domain_filter]
+    else:
+        plan = full_plan
+        active_domains = DOMAINS
+
     total = len(plan)
     succeeded = 0
     failed = 0
     failed_ids = []
 
-    log.info("Starting batch: %d trials across %d domains", total, len(DOMAINS))
+    log.info("Starting batch: %d trials across %d domains", total, len(active_domains))
     log.info("-" * 72)
 
     for i, entry in enumerate(plan, start=1):
@@ -497,9 +512,30 @@ if __name__ == "__main__":
         default=None,
         help="Run a specific domain batch. Omit to run all 60 trials.",
     )
+    parser.add_argument(
+        "--domain",
+        default=None,
+        metavar="DOMAIN",
+        help=(
+            "Execute only trials for the specified domain. "
+            "Valid values: %(choices)s. "
+            "The full 60-trial plan is still generated with seed=42 before "
+            "filtering so results are reproducible. "
+            "Omit to run all 60 trials (default behaviour)."
+        ).replace("%(choices)s", ", ".join(DOMAINS)),
+    )
     args = parser.parse_args()
 
-    if args.mode == "research_synthesis":
+    # Validate --domain before touching the network / filesystem.
+    if args.domain is not None and args.domain not in DOMAINS:
+        parser.error(
+            f"invalid --domain value: '{args.domain}'. "
+            f"Valid domain names are: {', '.join(DOMAINS)}"
+        )
+
+    if args.domain is not None:
+        run_batch(domain_filter=args.domain)
+    elif args.mode == "research_synthesis":
         run_research_synthesis_batch()
     elif args.mode == "financial_allocation":
         run_financial_allocation_batch()
