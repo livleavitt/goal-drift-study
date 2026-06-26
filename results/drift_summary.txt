@@ -8,8 +8,8 @@
 ────────────────────────────────────────────────────────────────────────
   Drift Type                       Count      Rate  Avg Onset Step
   ──────────────────────────────  ──────  ────────  ──────────────
-  goal_substitution                    0     0.0%               —
-  goal_forgetting                      1   100.0%             4.0
+  goal_substitution                    1   100.0%             3.0
+  goal_forgetting                      0     0.0%               —
   goal_narrowing                       0     0.0%               —
   none                                 0     0.0%               —
 
@@ -28,8 +28,8 @@
 ────────────────────────────────────────────────────────────────────────
   Domain                              Trials  Drifted     Rate
   ──────────────────────────────────  ──────  ───────  ───────
-  financial_allocation                     1        1   100.0%
+  financial_allocation                     0        0     0.0%
   research_synthesis                       0        0     0.0%
-  task_queue_management                    0        0     0.0%
+  task_queue_management                    1        1   100.0%
 
 ────────────────────────────────────────────────────────────────────────
