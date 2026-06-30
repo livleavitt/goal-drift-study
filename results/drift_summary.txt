@@ -1,6 +1,6 @@
 ────────────────────────────────────────────────────────────────────────
   GOAL DRIFT STUDY — STATISTICAL SUMMARY
-  Total trials analysed: 1
+  Total trials analysed: 62
 ────────────────────────────────────────────────────────────────────────
 
 ────────────────────────────────────────────────────────────────────────
@@ -8,28 +8,28 @@
 ────────────────────────────────────────────────────────────────────────
   Drift Type                       Count      Rate  Avg Onset Step
   ──────────────────────────────  ──────  ────────  ──────────────
-  goal_substitution                    1   100.0%             3.0
+  goal_substitution                    8    12.9%             1.6
   goal_forgetting                      0     0.0%               —
   goal_narrowing                       0     0.0%               —
-  none                                 0     0.0%               —
+  none                                54    87.1%               —
 
 ────────────────────────────────────────────────────────────────────────
   2. Drift Rate by Perturbation Type
 ────────────────────────────────────────────────────────────────────────
   Perturbation Type                   Trials  Drifted     Rate
   ──────────────────────────────────  ──────  ───────  ───────
-  contradicting_instruction                1        1   100.0%
-  new_salient_information                  0        0     0.0%
-  distraction_sub_task                     0        0     0.0%
-  partial_completion_signal                0        0     0.0%
+  contradicting_instruction               17        3    17.6%
+  new_salient_information                 15        4    26.7%
+  distraction_sub_task                    15        0     0.0%
+  partial_completion_signal               15        1     6.7%
 
 ────────────────────────────────────────────────────────────────────────
   3. Drift Rate by Task Domain
 ────────────────────────────────────────────────────────────────────────
   Domain                              Trials  Drifted     Rate
   ──────────────────────────────────  ──────  ───────  ───────
-  financial_allocation                     0        0     0.0%
-  research_synthesis                       0        0     0.0%
-  task_queue_management                    1        1   100.0%
+  financial_allocation                    21        1     4.8%
+  research_synthesis                      20        6    30.0%
+  task_queue_management                   21        1     4.8%
 
 ────────────────────────────────────────────────────────────────────────
